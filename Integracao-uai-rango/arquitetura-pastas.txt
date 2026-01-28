@@ -1,0 +1,16 @@
+📂 PROJETO-SAAS-DELIVERY
+├── 📂 src
+│   ├── 📂 @shared            <-- (Utils, Erros Globais)
+│   ├── 📂 core               <-- (O CORAÇÃO: Independente de Framework)
+│   │   ├── 📂 entities       <-- (Regras de Negócio Puras: Pedido.ts)
+│   │   └── 📂 use-cases      <-- (Fluxos: ProcessarPedido.ts)
+│   ├── 📂 infra              <-- (DETALHES TÉCNICOS: Externo)
+│   │   ├── 📂 database       <-- (Prisma, Repositórios)
+│   │   ├── 📂 gateways       <-- (API Uai Rango)
+│   │   └── 📂 providers      <-- (WhatsApp, OpenAI)
+│   ├── 📂 main               <-- (COMPOSIÇÃO: Onde tudo se une)
+│   │   ├── 📂 factories      <-- (Instanciação dos objetos)
+│   │   └── 📄 server.ts      <-- (Entry point)
+│   └── 📂 presentation       <-- (ENTRADA/SAÍDA: HTTP)
+│       ├── 📂 controllers    <-- (Controle de rotas)
+│       └── 📂 middlewares    <-- (Auth, Tenant Isolation)
