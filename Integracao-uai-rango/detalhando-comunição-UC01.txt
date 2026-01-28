@@ -1,0 +1,11 @@
+O que este diagrama nos diz sobre o design:
+Orquestração (UC): O objeto :ProcessarPedidoUseCase é o cérebro. Ele não salva nada diretamente no banco, ele pergunta ao :ClienteRepository e comanda o :PedidoRepository.
+
+Isolamento: Note que o tenantId (que definimos no diagrama de classes) deve ser passado na mensagem 3 e na mensagem 6. Sem ele, a comunicação é considerada insegura.
+
+Desacoplamento: O WebhookController apenas repassa o problema para o UseCase. Se amanhã você trocar o UAI Rango pelo iFood, você só muda o Controller; a lógica de comunicação entre os outros objetos permanece intacta.
+
+Detalhes das Mensagens:
+Mensagem 3 & 4: Essencial para o Multi-tenancy. O sistema verifica se aquele número de telefone já é um cliente daquele restaurante específico.
+
+Mensagem 6: Aqui a lógica de domínio entra em ação. O objeto Pedido é instanciado e o método calcularTotal() (do nosso diagrama anterior) pode ser chamado internamente.

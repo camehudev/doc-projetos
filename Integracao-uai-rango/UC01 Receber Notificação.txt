@@ -1,0 +1,46 @@
+UC01: Receber Notificação de Novo Pedido
+Descrição: O sistema deve processar automaticamente as notificações de novos pedidos enviadas pelo UAI Rango, garantindo a persistência dos dados e a preparação para o atendimento via IA.
+
+1. Requisitos Funcionais (RF)
+RF01 - Recepção de Webhook: O sistema deve expor um endpoint público para receber requisições POST do UAI Rango.
+
+RF02 - Autenticação da Origem: O sistema deve validar se a requisição é legítima (via Token ou IP) antes de processar.
+
+RF03 - Normalização de Dados: O sistema deve converter o JSON proprietário do UAI Rango para a entidade interna de Pedido do sistema.
+
+RF04 - Persistência em Banco: O sistema deve salvar o pedido, os itens e os dados do cliente no PostgreSQL via Prisma.
+
+RF05 - Identificação de Cliente: O sistema deve verificar se o telefone do cliente já existe; se sim, vincular ao perfil existente, se não, criar um novo.
+
+2. Requisitos Não Funcionais (RNF)
+RNF01 - Resposta Rápida (Baixa Latência): O endpoint deve responder HTTP 200 OK em menos de 200ms para evitar reenvios (Retries) por parte do UAI Rango.
+
+RNF02 - Idempotência: O sistema deve ser capaz de lidar com a mesma notificação múltiplas vezes sem criar duplicidade no banco.
+
+RNF03 - Disponibilidade: O serviço de recepção deve estar disponível 24/7 (Alta disponibilidade).
+
+RNF04 - Log de Erros: Qualquer falha na recepção ou processamento deve ser registrada em logs para auditoria técnica.
+
+3. Regras de Negócio (RN)
+RN01 - Unicidade por ID Externo: A chave de unicidade do pedido no sistema deve ser a combinação de origem (UAI_RANGO) + externalOrderId. Se o ID já existir, o sistema ignora a criação.
+
+RN02 - Higienização de Telefone: O número de telefone recebido deve ser formatado para o padrão internacional (E.164) necessário para a API do WhatsApp (ex: +55...).
+
+RN03 - Status Inicial: Todo pedido vindo via Webhook deve ser registrado inicialmente com o status RECEBIDO.
+
+RN04 - Tratamento de Observações: Observações de itens (ex: "sem cebola") devem ser destacadas para que a IA possa processá-las prioritariamente.
+
+Fluxo de Eventos (Cenário Principal)
+UAI Rango envia o JSON do pedido.
+
+API valida o Token de acesso.
+
+API verifica se o externalOrderId já consta no banco.
+
+API salva o Cliente (ou recupera o ID).
+
+API salva o Pedido e seus Itens em uma única transação Prisma.
+
+API retorna 200 OK.
+
+(Post-processing) O sistema dispara o evento para a IA e para o Dashboard.

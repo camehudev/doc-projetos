@@ -1,0 +1,21 @@
+Essa é uma preocupação vital. Expor um endpoint de Webhook sem segurança é o equivalente a deixar a porta da frente do restaurante aberta de madrugada. Um hacker poderia injetar centenas de pedidos falsos, sobrecarregando sua cozinha e gerando custos de API desnecessários.Como estamos trabalhando com Clean Architecture, a segurança deve ser tratada na camada de Infraestrutura/Middleware, antes mesmo de o dado chegar ao seu Use Case.Estratégia de Segurança para WebhooksAqui estão as três camadas de proteção que devemos implementar:1. Validação de Token Estático (X-API-Key)A forma mais comum de integração com marketplaces como o UAI Rango é o uso de um Token de Autenticação enviado no Header da requisição.Como funciona: Você gera um UUID longo e aleatório e o cadastra no portal do UAI Rango como "Webhook Secret".Ação da API: Seu middleware intercepta a requisição e verifica se o header x-uairango-token (ou similar) corresponde ao que você tem no seu arquivo .env.2. Assinatura de Payload (HMAC)Se o UAI Rango suportar, esta é a forma mais segura. Eles enviam um hash no header baseado no corpo da mensagem.Como funciona: Eles pegam o JSON do pedido, criptografam com uma chave secreta e enviam o resultado (assinatura).Ação da API: Você faz o mesmo cálculo com o JSON recebido. Se o resultado for igual à assinatura do header, o dado é íntegro e autêntico.3. IP Whitelisting (Lista Branca de IPs)Uma camada extra de rede.Como funciona: Você configura o seu servidor (ou middleware) para aceitar requisições nos endpoints de Webhook apenas se elas vierem dos endereços IP oficiais do UAI Rango.Implementação na Arquitetura (Node.js)Na sua estrutura de pastas, isso ficaria em src/infrastructure/middleware/auth-webhook.middleware.ts.Exemplo de Middleware de Segurança:TypeScriptimport { Request, Response, NextFunction } from 'express';
+
+export const validateUaiRangoWebhook = (req: Request, res: Response, next: NextFunction) => {
+  const incomingToken = req.headers['x-uairango-token'];
+  const secretToken = process.env.UAIRANGO_WEBHOOK_SECRET;
+
+  // 1. Verificação de Token
+  if (!incomingToken || incomingToken !== secretToken) {
+    console.warn(`[SECURITY ALERT] Tentativa de acesso não autorizado de IP: ${req.ip}`);
+    return res.status(401).json({ error: 'Não autorizado: Token inválido ou ausente.' });
+  }
+
+  // 2. Verificação de IP (Opcional, mas recomendado)
+  const allowedIps = ['123.456.78.90', '098.765.43.21']; // IPs fictícios do UAI Rango
+  if (process.env.NODE_ENV === 'production' && !allowedIps.includes(req.ip as string)) {
+    return res.status(403).json({ error: 'Proibido: IP não autorizado.' });
+  }
+
+  next();
+};
+Documentação da Camada de SegurançaRequisitoDescriçãoImplementaçãoSanitizaçãoTodo JSON recebido deve ser validado para evitar ataques de NoSQL Injection.Utilizar bibliotecas como Zod ou Joi.HTTPS OnlyO endpoint de Webhook deve aceitar apenas conexões via TLS/SSL.Configuração de Servidor/Nginx.Rate LimitingBloquear IPs que enviem mais de 100 requisições por minuto no endpoint.Express-rate-limit.Log de AuditoriaRegistrar o ID do pedido e o IP de origem de cada Webhook recebido.Winston ou Pino Logger.Regra de Negócio de Segurança (RN-S)RN-S01: Se a validação do Token falhar, a API deve retornar 401 Unauthorized e não deve processar nenhuma query no Prisma.RN-S02: Em caso de falha recorrente de um mesmo IP, o sistema deve emitir um alerta técnico para o Administrador no Dashboard.RN-S03: O segredo do Webhook deve ser armazenado como Secret em variáveis de ambiente, nunca diretamente no código (Git).

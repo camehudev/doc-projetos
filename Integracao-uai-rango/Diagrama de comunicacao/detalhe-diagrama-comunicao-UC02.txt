@@ -1,0 +1,11 @@
+Análise do Fluxo de Mensagens
+Mensagem 5 (O Coração do Domínio): O Use Case não muda o status diretamente. Ele chama o método alterarStatus() da entidade Pedido que desenhamos no Diagrama de Domínio. Se a transição for proibida (ex: tentar cancelar um pedido que já saiu para entrega), a entidade lança um erro e o processo para aqui.
+
+Mensagem 8 (Dashboard): O objeto :SocketGateway é responsável por avisar o seu frontend em PrimeVue. O restaurante vê o "card" do pedido mudar de cor ou de coluna sem dar F5.
+
+Mensagem 9 (O Diferencial da IA): O serviço :IAWhatsAppService recebe o objeto Pedido atualizado. Com base no novo status e no tenantId, ele consulta o prompt daquele restaurante e decide se deve mandar uma mensagem automática (ex: "Seu pedido saiu para entrega!").
+
+Pontos de Atenção para o Script
+Idempotência: Na mensagem 3, se o pedido não for encontrado, o fluxo deve retornar um log de erro, mas ainda responder 200 ao Uai Rango para evitar loops de reenvio.
+
+Isolamento: Novamente, o tenantId é passado na busca (Mensagem 3) para garantir que um webhook malicioso não tente alterar o status de um pedido de outro restaurante.

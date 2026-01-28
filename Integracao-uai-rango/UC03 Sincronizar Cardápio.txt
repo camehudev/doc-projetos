@@ -1,0 +1,55 @@
+UC03: Sincronizar Cardápio/Produtos
+Descrição: O sistema deve consultar a API do UAI Rango para importar e atualizar a lista de produtos, preços e disponibilidade, mantendo um cache local (Prisma) que servirá de base de conhecimento para a IA e exibição no Dashboard.
+
+1. Requisitos Funcionais (RF)
+RF01 - Importação de Itens: O sistema deve ler a árvore de categorias e produtos do marketplace.
+
+RF02 - Atualização de Disponibilidade: O sistema deve identificar itens "Ativos" e "Pausados" no UAI Rango e refletir no banco local.
+
+RF03 - Sincronização de Preços: O sistema deve garantir que o valor cobrado pela IA no WhatsApp seja idêntico ao valor do marketplace.
+
+RF04 - Mapeamento de Adicionais: O sistema deve importar as opções de personalização (ex: "ponto da carne", "adicional de bacon") para que a IA saiba o que oferecer.
+
+RF05 - Gatilho Manual: O Administrador deve poder forçar uma sincronização através de um botão no PrimeVue.
+
+2. Requisitos Não Funcionais (RNF)
+RNF01 - Consistência de Dados: Em caso de falha na sincronização, o sistema deve manter os dados anteriores e alertar o Administrador, em vez de apagar o cardápio.
+
+RNF02 - Desempenho: A busca de cardápio não deve travar a API; deve ser processada como uma Background Task.
+
+RNF03 - Volume de Dados: O sistema deve suportar cardápios com centenas de itens e variações sem degradação de performance.
+
+3. Regras de Negócio (RN)
+RN01 - Cache como Fonte de Verdade para IA: A IA nunca deve consultar o UAI Rango em tempo real durante uma conversa; ela deve usar a tabela MenuCache para garantir respostas instantâneas.
+
+RN02 - Sincronização Periódica (Cron): O sistema deve realizar uma sincronização automática a cada 1 hora (ou conforme limite da API do UAI Rango) para captar alterações feitas no portal deles.
+
+RN03 - Tratamento de Itens Excluídos: Itens que deixarem de vir na API do UAI Rango devem ser marcados como is_available = false ou deleted = true no seu banco, para não perder o histórico de pedidos antigos que usavam aquele item.
+
+RN04 - Prioridade de Nome/Descrição: A IA deve usar as descrições vindas do UAI Rango para explicar os pratos ao cliente no WhatsApp.
+
+Fluxo de Eventos (Sincronização Agendada ou Manual)
+O sistema dispara a tarefa (via Cron ou clique no Vue).
+
+O Use Case solicita os dados à API do UAI Rango (via Infrastructure Layer).
+
+O sistema recebe a lista de categorias e produtos.
+
+O sistema percorre os itens e executa um upsert no Prisma:
+
+Se o ID do produto existe: Atualiza preço e status.
+
+Se o ID não existe: Cria o novo produto.
+
+O sistema limpa ou desativa itens que não constam mais no payload.
+
+O Dashboard PrimeVue exibe uma notificação de "Sincronização concluída com sucesso".
+
+Conclusão dos Casos de Uso da Integração
+Com o detalhamento do UC01, UC02 e UC03, você tem o "Manual de Instruções" completo para a sua Clean Architecture.
+
+UC01: Entrada de Pedidos (Webhook).
+
+UC02: Manutenção de Status (Webhook).
+
+UC03: Base de Conhecimento (Polling/API).

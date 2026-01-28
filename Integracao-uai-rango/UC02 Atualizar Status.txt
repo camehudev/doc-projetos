@@ -1,0 +1,42 @@
+UC02: Atualizar Status do Pedido
+Descrição: O sistema deve processar atualizações de status enviadas pelo UAI Rango (ex: Confirmado, Em Preparo, Saiu para Entrega, Cancelado), mantendo a base de dados sincronizada e permitindo que a IA envie as notificações corretas no WhatsApp.
+
+1. Requisitos Funcionais (RF)
+RF01 - Escuta de Eventos de Status: O sistema deve capturar Webhooks de mudança de status originados no UAI Rango.
+
+RF02 - Mapeamento de Status Interno: O sistema deve traduzir os códigos de status do UAI Rango para os enums de status definidos na sua Clean Architecture (ex: READY_TO_PICKUP -> SAIU_PARA_ENTREGA).
+
+RF03 - Atualização de Timeline: O sistema deve registrar o histórico de horários para cada mudança de status para fins de métricas de tempo de entrega.
+
+RF04 - Trigger de Notificação: Ao mudar para status críticos (ex: Saiu para Entrega), o sistema deve sinalizar ao serviço de IA/WhatsApp para notificar o cliente.
+
+2. Requisitos Não Funcionais (RNF)
+RNF01 - Consistência Eventual: A atualização no banco de dados deve ocorrer em tempo real (máximo 1 segundo após o recebimento).
+
+RNF02 - Integridade de Dados: O sistema não deve permitir que um status retroceda (ex: de "Entregue" para "Pendente"), a menos que seja um fluxo específico de erro.
+
+RNF03 - Auditabilidade: Cada mudança de status deve armazenar o payload bruto recebido para depuração em caso de divergência entre sistemas.
+
+3. Regras de Negócio (RN)
+RN01 - Bloqueio de Bot em Cancelamento: Se o status recebido for CANCELADO, qualquer tarefa agendada da IA para aquele pedido deve ser imediatamente abortada.
+
+RN02 - Prioridade de Dashboard: O status deve ser atualizado via Socket.io no Dashboard Vue sem necessidade de recarregamento da página.
+
+RN03 - Tratamento de Pedido Não Encontrado: Caso chegue uma atualização de um externalOrderId que não existe na base (erro de sincronia), o sistema deve registrar um log de aviso e ignorar a operação para não quebrar o serviço.
+
+RN04 - Notificação Silenciosa: Mudanças de status puramente administrativas (ex: "Confirmado pela Cozinha") podem não disparar mensagens ao cliente, dependendo da configuração de "Personalidade da IA".
+
+Fluxo de Eventos (Cenário de Mudança de Status)
+O restaurante altera o status no painel do UAI Rango.
+
+O UAI Rango dispara um Webhook de atualização de evento.
+
+Sua API localiza o pedido no Prisma através do externalOrderId.
+
+O sistema verifica se o novo status é diferente do atual.
+
+O Prisma executa um update na tabela de Pedidos.
+
+O Socket.io envia o novo status para o PrimeVue (Dashboard).
+
+Se o status for "Saiu para Entrega", o Use Case de Notificação é invocado para falar com o cliente.

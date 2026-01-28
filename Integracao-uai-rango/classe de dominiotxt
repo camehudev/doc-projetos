@@ -1,0 +1,13 @@
+Excelente observação. Para um sistema que atende restaurantes (SaaS), o Multi-tenancy (Tenancy ID) é o que permite que você use a mesma infraestrutura para centenas de clientes diferentes (restaurantes), garantindo que os dados de um nunca vazem para o outro.Na Clean Architecture, o tenantId (ou restauranteId) deve estar presente em praticamente todas as entidades de domínio e ser um filtro obrigatório em todas as buscas.Diagrama de Classes de Domínio (Com Multi-tenancy)1. Entidade: Restaurante (O Tenant)Esta é a entidade raiz. Tudo no sistema orbita em torno dela.Atributos:uuid: stringnomeFantasia: stringuaiRangoToken: string (Credencial única deste restaurante)whatsappConfig: objectconfiguracaoIA: objectMétodos:ativarAssinatura(): voidconfigurarHorarioFuncionamento(): voidDetalhamento das Classes com Atributos e MétodosAbaixo, incluí o tenantId (referência ao Restaurante) em cada classe:ClasseAtributos PrincipaisMétodos de DomínioPedidouuid, tenantId, externalOrderId, status, total, dataalterarStatus(), validarPertenceAoTenant(id)Clienteuuid, tenantId, nome, telefone, totalPedidosvincularNovoPedido(), bloquearCliente()Produtouuid, tenantId, externalId, nome, preco, disponivelatualizarEstoque(), aplicarDesconto()Categoriauuid, tenantId, nome, ordemreordenarProdutos()Regras de Negócio de Multi-tenancy (RN-T)RN-T01 - Isolamento Total: Um Pedido com tenantId = A nunca pode ser acessado, alterado ou visualizado por um usuário autenticado no tenantId = B.RN-T02 - Unicidade Composta: A regra de "Pedido Único" agora passa a ser: externalOrderId + tenantId. Isso permite que dois restaurantes diferentes tenham um pedido com o mesmo ID no UAI Rango sem gerar erro no seu banco.RN-T03 - Escopo de IA: O Agente de IA, ao processar uma conversa, deve carregar o contexto (cardápio e regras) filtrando exclusivamente pelo tenantId daquele número de WhatsApp.Como isso impacta sua Clean Architecture?Repositórios: Todos os métodos como findById agora devem ser findById(id, tenantId).Contexto Global: No seu backend Node.js, você usará um Middleware que extrai o tenantId do Token JWT e o injeta no Use Case.Frontend (PrimeVue): O Dashboard exibirá apenas os dados do restaurante logado.Exemplo de Entidade de Domínio Refatorada (TypeScript):TypeScriptexport class Pedido {
+  constructor(
+    private readonly uuid: string,
+    private readonly tenantId: string, // Identificador do Restaurante
+    private status: EnumStatus,
+    private valorTotal: number
+  ) {}
+
+  // A lógica de negócio agora exige o tenantId para qualquer ação
+  podeSerGerenciadoPor(tenantId: string): boolean {
+    return this.tenantId === tenantId;
+  }
+}

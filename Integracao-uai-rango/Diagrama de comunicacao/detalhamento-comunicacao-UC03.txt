@@ -1,0 +1,15 @@
+Análise do Fluxo de Mensagens
+Iteração e Persistência (Mensagens 4 a 13): O Use Case atua como um coordenador de transações. Ele verifica a existência de cada entidade para decidir entre o Create ou Update (Lógica de Upsert). Note que o tenantId é passado em todas as buscas para garantir que o produto "X" do Restaurante A não seja confundido com o produto "X" do Restaurante B.
+
+Desacoplamento de Infraestrutura (Mensagem 2): O objeto :UaiRangoGateway esconde a complexidade da API externa. Se o UAI Rango mudar a versão da API ou o formato do JSON, você só mexe no Gateway; o Use Case e as Entidades permanecem intocados.
+
+Estado da Entidade (Mensagens 7 e 12): Antes de salvar no repositório, os objetos de domínio Categoria e Produto recebem os novos dados para se autovalidarem (ex: verificar se o preço é negativo ou se o nome está vazio).
+
+Conclusão do Ciclo de Design
+Agora você tem em mãos a documentação completa da "ponte" entre o UAI Rango e sua API:
+
+DCU: O que o sistema faz.
+
+Diagrama de Domínio: Como o sistema é estruturado (Multi-tenant).
+
+Diagramas de Comunicação (UC01, 02, 03): Como os objetos "conversam" para entregar o resultado.

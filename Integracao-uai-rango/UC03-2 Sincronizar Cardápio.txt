@@ -1,0 +1,59 @@
+UC03: Sincronizar Cardápio/Produtos
+Descrição: O sistema deve realizar o consumo da API de catálogo do UAI Rango para espelhar categorias, produtos, preços e disponibilidades no banco de dados local. Este cache servirá de base para a tomada de decisão da IA e para a gestão no Dashboard.
+
+1. Requisitos Funcionais (RF)
+RF01 - Varredura Completa (Full Sync): O sistema deve ser capaz de percorrer toda a árvore de categorias e produtos do UAI Rango.
+
+RF02 - Mapeamento de Complementos: O sistema deve importar grupos de opcionais (ex: "Escolha seu ponto", "Adicionais") e suas respectivas regras (mínimo/máximo de escolhas).
+
+RF03 - Atualização de Status de Estoque: O sistema deve identificar itens que foram pausados ou reativados no marketplace e refletir essa alteração no banco local imediatamente.
+
+RF04 - Sincronização de Imagens: O sistema deve armazenar as URLs das imagens dos produtos para que, no futuro, a IA possa enviar fotos no WhatsApp.
+
+RF05 - Log de Sincronia: O sistema deve registrar a data e hora da última sincronização bem-sucedida.
+
+2. Requisitos Não Funcionais (RNF)
+RNF01 - Processamento em Background: Devido ao volume de dados e latência da API externa, a sincronização deve ocorrer de forma assíncrona (Job/Worker).
+
+RNF02 - Tolerância a Falhas: Se a API do UAI Rango estiver fora do ar, o sistema deve manter os dados atuais e não limpar o cardápio (Fail-safe).
+
+RNF03 - Escalabilidade: O mapeamento deve suportar cardápios complexos (mais de 500 SKUs) sem estourar o limite de memória da aplicação Node.js.
+
+3. Regras de Negócio (RN)
+RN01 - Precedência de Preço: O preço definido no UAI Rango é a verdade absoluta. Qualquer divergência entre o banco local e a API deve ser resolvida em favor da API externa no momento da sincronia.
+
+RN02 - Itens Fantasmas: Itens que não aparecem mais no payload da API devem ser marcados como archived: true em vez de deletados fisicamente, para preservar a integridade referencial de pedidos antigos.
+
+RN03 - Frequência de Atualização:
+
+Automática: A cada 60 minutos (configurável via .env).
+
+Manual: A qualquer momento via Dashboard.
+
+RN04 - Bloqueio de Venda pela IA: Itens marcados como indisponíveis na tabela MenuCache devem ser automaticamente removidos do contexto de sugestão da IA no WhatsApp.
+
+Fluxo de Eventos (Fluxo Principal)
+Gatilho: O sistema atinge o horário agendado (Cron) ou o usuário clica em "Sincronizar" no PrimeVue.
+
+Request: O UaiRangoService (Infra) faz uma chamada autenticada para o endpoint de catálogo.
+
+Processamento: O Use Case recebe a lista bruta (JSON).
+
+Loop de Upsert:
+
+Para cada Categoria: Cria ou atualiza.
+
+Para cada Produto: Verifica o externalProductId. Se existir, atualiza preço/descrição. Se não, cria.
+
+Para cada Opcional: Mapeia as relações de dependência.
+
+Finalização: O sistema atualiza o campo last_sync_at na tabela de Configurações da Loja.
+
+Feedback: O Socket.io emite um evento MENU_UPDATED para o Dashboard atualizar a interface do usuário.
+
+Por que isso é vital para sua IA?
+Imagine o cenário: O restaurante fica sem Pão de Brioche às 20h e pausa o item no UAI Rango.
+
+Sem o UC03: A IA continua vendendo o burger com brioche pelo WhatsApp até o dono perceber.
+
+Com o UC03: O sistema sincroniza, a IA lê o status disponivel: false e passa a sugerir o Pão Australiano automaticamente como alternativa.

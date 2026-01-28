@@ -1,0 +1,116 @@
+Para transformar seus Casos de Uso em realidade dentro da Clean Architecture, precisamos definir o Diagrama de Classes de Análise. Diferente de um diagrama de banco de dados, este foca nas Entidades de Domínio (regras de negócio) e como elas se relacionam logicamente.
+
+Aqui estão as entidades fundamentais para sustentar a integração com o UAI Rango.
+
+1. Diagrama de Classes de Análise (Conceitual)
+Snippet de código
+
+classDiagram
+    class Cliente {
+        +String uuid
+        +String nome
+        +String telefone
+        +String email
+        +DateTime dataCadastro
+    }
+
+    class Pedido {
+        +String uuid
+        +String externalOrderId
+        +Enum origem (UAI_RANGO)
+        +Enum status (RECEBIDO, PREPARANDO, SAIU_ENTREGA, CANCELADO)
+        +Decimal valorTotal
+        +Decimal taxaEntrega
+        +DateTime dataCriacao
+    }
+
+    class ItemPedido {
+        +String uuid
+        +String nomeProduto
+        +Int quantidade
+        +Decimal precoUnitario
+        +String observacao
+    }
+
+    class Categoria {
+        +String uuid
+        +String externalId
+        +String nome
+        +Int ordemExibicao
+    }
+
+    class Produto {
+        +String uuid
+        +String externalId
+        +String nome
+        +String descricao
+        +Decimal preco
+        +Boolean disponivel
+        +String urlImagem
+    }
+
+    class Complemento {
+        +String uuid
+        +String nome
+        +Decimal preco
+        +Boolean disponivel
+    }
+
+    Cliente "1" -- "0..*" Pedido : realiza
+    Pedido "1" -- "1..*" ItemPedido : contém
+    Categoria "1" -- "0..*" Produto : agrupa
+    Produto "1" -- "0..*" Complemento : possui
+    ItemPedido "0..*" -- "1" Produto : refere-se
+    
+    
+2. Mapeamento por Caso de Uso
+Abaixo, detalho quais classes entram em ação para cada funcionalidade que documentamos:
+
+UC01: Receber Novo Pedido
+Entidades Envolvidas: Pedido, ItemPedido, Cliente.
+
+Relacionamento:
+
+Um Cliente pode ter muitos Pedidos (1:N).
+
+Um Pedido deve ter pelo menos um ItemPedido (1:1..*).
+
+Multiplicidade: Se o externalOrderId for novo, cria-se o Pedido. Se o telefone não existir, cria-se o Cliente.
+
+UC02: Atualizar Status do Pedido
+Entidades Envolvidas: Pedido.
+
+Relacionamento: Operação direta sobre o atributo status da classe Pedido.
+
+Lógica: O externalOrderId serve como o elo de ligação para encontrar a instância correta de Pedido.
+
+UC03: Sincronizar Cardápio
+Entidades Envolvidas: Categoria, Produto, Complemento.
+
+Relacionamento:
+
+Uma Categoria possui vários Produtos (1:N).
+
+Um Produto pode ter vários Complementos (N:N ou 1:N dependendo da estrutura de grupos).
+
+Multiplicidade: A sincronização é um processo de "espelhamento". Se uma Categoria sumir da API, ela é desativada no domínio.
+
+3. Atributos Críticos para Integração
+Para que a Clean Architecture funcione bem entre o seu Node.js e o UAI Rango, estas classes precisam de campos específicos:
+
+Idempotência: As classes Pedido, Produto e Categoria devem ter um campo externalId. Isso evita que, ao rodar a sincronização (UC03) ou receber o webhook (UC01), você crie duplicatas.
+
+Normalização: Note que em ItemPedido temos precoUnitario e nomeProduto. Por que? Porque se o preço do Produto mudar no futuro, o valor histórico do que foi vendido naquele Pedido específico precisa ser preservado (Snapshot).
+
+Conclusão e Próximo Passo
+Este diagrama de classes é o que o seu Prisma Schema deve refletir e o que o seu Vue/PrimeVue vai receber via API.
+
+O que você gostaria de fazer agora?
+
+Transformar isso em código: Quer que eu gere o arquivo schema.prisma baseado exatamente nessas classes e relacionamentos?
+
+Definir a Camada de Serviço (Domain Services): Criar a lógica de como a classe Pedido valida se pode mudar de "Recebido" para "Cancelado".
+
+Mapear para o PrimeVue: Ver como essas classes seriam transformadas em Interfaces TypeScript no seu Frontend.
+
+Eu recomendo o item 1 (Prisma Schema) para que possamos subir o banco de dados e começar a testar a recepção dos Webhooks. Vamos nessa?
